@@ -16,33 +16,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Calculate check window
-        id: window
-        run: |
-          # Last check was 7 days ago (since we run weekly)
-          LAST_CHECK=$(date -u -d "7 days ago" -Iseconds)
-          echo "last-check=$LAST_CHECK" >> "$GITHUB_OUTPUT"
-          echo "Checking for updates published after: $LAST_CHECK"
-
       - name: Check hotio/qbittorrent base image
         id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Get the latest tag/version info from hotio/qbittorrent
-          # We'll check the GitHub releases for the hotio qBittorrent repository
-          RELEASE=$(curl -s https://api.github.com/repos/hotio/qbittorrent/releases/latest)
-          LATEST=$(echo "$RELEASE" | jq -r '.tag_name')
-          PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
-          LAST_CHECK="${{ steps.window.outputs.last-check }}"
+          # Get the current digest of hotio/qbittorrent:latest from GHCR
+          TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:hotio/qbittorrent:pull" | jq -r '.token')
+          CURRENT_DIGEST=$(curl -sI -H "Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/hotio/qbittorrent/manifests/latest" | \
+            grep -i "docker-content-digest:" | awk '{print $2}' | tr -d '\r')
           
-          echo "latest-version=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "published-at=$PUBLISHED" >> "$GITHUB_OUTPUT"
+          echo "current-digest=$CURRENT_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Current hotio/qbittorrent digest: $CURRENT_DIGEST"
           
-          if [[ "$PUBLISHED" > "$LAST_CHECK" ]]; then
-            echo "needs-update=true" >> "$GITHUB_OUTPUT"
-            echo "✓ New version found: $LATEST (published: $PUBLISHED)"
+          # Get the last known digest from the latest release asset
+          LAST_DIGEST=$(gh release view latest --json assets --jq '.assets[] | select(.name == "hotio-digest.txt") | .url' 2>/dev/null | xargs -I {} curl -sL {} || echo "")
+          
+          if [ -n "$LAST_DIGEST" ]; then
+            echo "Last known digest: $LAST_DIGEST"
+            
+            if [ "$CURRENT_DIGEST" != "$LAST_DIGEST" ]; then
+              echo "needs-update=true" >> "$GITHUB_OUTPUT"
+              echo "✓ New image detected - digest changed"
+            else
+              echo "needs-update=false" >> "$GITHUB_OUTPUT"
+              echo "✗ No update - digest unchanged"
+            fi
           else
-            echo "needs-update=false" >> "$GITHUB_OUTPUT"
-            echo "✗ No updates - $LATEST is older than last check"
+            echo "needs-update=true" >> "$GITHUB_OUTPUT"
+            echo "✓ First run or no previous digest found - will build"
           fi
 
   trigger-build:
@@ -54,7 +57,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            console.log('Triggering build for qBittorrent version:', '${{ needs.check.outputs.qbittorrent-version }}');
+            console.log('Triggering build for updated qBittorrent image');
+            console.log('New digest:', '${{ needs.check.outputs.current-digest }}');
             
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,

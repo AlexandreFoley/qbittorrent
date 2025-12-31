@@ -26,14 +26,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Fetch latest qBittorrent version
-        id: versions
-        run: |
-          # Get latest version from hotio/qbittorrent
-          QBITTORRENT_VERSION=$(curl -s "https://ghcr.io/v2/hotio/qbittorrent/tags/list" | jq -r '.tags[] | select(. != "latest")' | head -1)
-          echo "qBittorrent version: $QBITTORRENT_VERSION"
-          echo "qbittorrent=$QBITTORRENT_VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -64,7 +56,6 @@ jobs:
           load: ${{ github.event_name != 'push' && github.event.inputs.push != 'true' }}
           tags: |
             ghcr.io/${{ env.REPO_LOWER }}:latest
-            ghcr.io/${{ env.REPO_LOWER }}:${{ steps.versions.outputs.qbittorrent }}
             ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -109,32 +100,52 @@ jobs:
           docker kill test-qbittorrent
 
       - name: Create release
-        if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.versions.outputs.qbittorrent }}-${{ github.run_number }}
-          name: qBittorrent ${{ steps.versions.outputs.qbittorrent }}
-          body: |
-            ## qBittorrent Custom Image
-            
-            **Base Version**: ${{ steps.versions.outputs.qbittorrent }}
-            
-            ### Features
-            - Auto-configuration via environment variables
-            - WebUI username/password configuration
-            - Custom download folder support
-            
-            ### Image Tags
-            - `ghcr.io/${{ env.REPO_LOWER }}:latest`
-            - `ghcr.io/${{ env.REPO_LOWER }}:${{ steps.versions.outputs.qbittorrent }}`
-            - `ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}`
-            
-            ### Environment Variables
-            - `WEBUI_USERNAME` - WebUI username (default: admin)
-            - `WEBUI_PASSWORD` - WebUI password (default: random secure password)
-            - `DOWNLOAD_FOLDER` - Download directory (default: /Media/torrents)
-            
-            **Build**: #${{ github.run_number }}  
-            **SHA**: `${{ github.sha }}`
-          draft: false
-          prerelease: false
+        if: github.event_name == 'push' || github.event.inputs.push == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Get the current hotio/qbittorrent digest for tracking
+          TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:hotio/qbittorrent:pull" | jq -r '.token')
+          HOTIO_DIGEST=$(curl -sI -H "Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/hotio/qbittorrent/manifests/latest" | \
+            grep -i "docker-content-digest:" | awk '{print $2}' | tr -d '\r')
+          
+          # Save digest to file for release asset
+          echo "$HOTIO_DIGEST" > hotio-digest.txt
+          
+          # Create or update the latest release
+          TAG_NAME="latest"
+          RELEASE_NAME="Latest qBittorrent Build"
+          
+          # Check if release exists
+          if gh release view $TAG_NAME >/dev/null 2>&1; then
+            echo "Updating existing release..."
+            gh release delete $TAG_NAME -y
+          fi
+          
+          # Create new release
+          gh release create $TAG_NAME \
+            --title "$RELEASE_NAME" \
+            --notes "## qBittorrent Custom Image
+          
+          **Built**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Base Image**: hotio/qbittorrent
+          **Base Digest**: \`$HOTIO_DIGEST\`
+          
+          ### Features
+          - Auto-configuration via environment variables
+          - WebUI username/password configuration
+          - Custom download folder support
+          
+          ### Image Tags
+          - \`ghcr.io/${{ env.REPO_LOWER }}:latest\`
+          - \`ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}\`
+          
+          ### Environment Variables
+          - \`WEBUI_USERNAME\` - WebUI username (default: admin)
+          - \`WEBUI_PASSWORD\` - WebUI password (strongly recommend using env file)
+          - \`DOWNLOAD_FOLDER\` - Download directory (default: /Media/torrents)
+          
+          **Build Run**: #${{ github.run_number }}  
+          **Commit SHA**: \`${{ github.sha }}\`" \
+            hotio-digest.txt
