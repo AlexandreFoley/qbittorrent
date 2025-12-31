@@ -1,0 +1,67 @@
+name: Check for qBittorrent Updates
+
+on:
+  schedule:
+    # Check for updates weekly on Mondays at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      qbittorrent-version: ${{ steps.check.outputs.latest-version }}
+      needs-update: ${{ steps.check.outputs.needs-update }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Calculate check window
+        id: window
+        run: |
+          # Last check was 7 days ago (since we run weekly)
+          LAST_CHECK=$(date -u -d "7 days ago" -Iseconds)
+          echo "last-check=$LAST_CHECK" >> "$GITHUB_OUTPUT"
+          echo "Checking for updates published after: $LAST_CHECK"
+
+      - name: Check hotio/qbittorrent base image
+        id: check
+        run: |
+          # Get the latest tag/version info from hotio/qbittorrent
+          # We'll check the GitHub releases for the hotio qBittorrent repository
+          RELEASE=$(curl -s https://api.github.com/repos/hotio/qbittorrent/releases/latest)
+          LATEST=$(echo "$RELEASE" | jq -r '.tag_name')
+          PUBLISHED=$(echo "$RELEASE" | jq -r '.published_at')
+          LAST_CHECK="${{ steps.window.outputs.last-check }}"
+          
+          echo "latest-version=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "published-at=$PUBLISHED" >> "$GITHUB_OUTPUT"
+          
+          if [[ "$PUBLISHED" > "$LAST_CHECK" ]]; then
+            echo "needs-update=true" >> "$GITHUB_OUTPUT"
+            echo "✓ New version found: $LATEST (published: $PUBLISHED)"
+          else
+            echo "needs-update=false" >> "$GITHUB_OUTPUT"
+            echo "✗ No updates - $LATEST is older than last check"
+          fi
+
+  trigger-build:
+    needs: check
+    if: needs.check.outputs.needs-update == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger build workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('Triggering build for qBittorrent version:', '${{ needs.check.outputs.qbittorrent-version }}');
+            
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              ref: 'main',
+              inputs: {
+                push: 'true'
+              }
+            });

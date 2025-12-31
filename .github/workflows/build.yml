@@ -1,0 +1,140 @@
+name: Build and Publish qBittorrent Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push to registry (true/false)'
+        required: false
+        default: 'false'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'root/**'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fetch latest qBittorrent version
+        id: versions
+        run: |
+          # Get latest version from hotio/qbittorrent
+          QBITTORRENT_VERSION=$(curl -s "https://ghcr.io/v2/hotio/qbittorrent/tags/list" | jq -r '.tags[] | select(. != "latest")' | head -1)
+          echo "qBittorrent version: $QBITTORRENT_VERSION"
+          echo "qbittorrent=$QBITTORRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set lowercase repository name
+        run: |
+          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' || github.event.inputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' || github.event.inputs.push == 'true' }}
+          load: ${{ github.event_name != 'push' && github.event.inputs.push != 'true' }}
+          tags: |
+            ghcr.io/${{ env.REPO_LOWER }}:latest
+            ghcr.io/${{ env.REPO_LOWER }}:${{ steps.versions.outputs.qbittorrent }}
+            ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Test container locally
+        if: github.event_name != 'push' && github.event.inputs.push != 'true'
+        run: |
+          # Create test directory
+          mkdir -p /tmp/test-config
+          
+          # Run container in background
+          docker run --rm -d --name test-qbittorrent \
+            -p 8080:8080 \
+            -v /tmp/test-config:/config \
+            -e WEBUI_USERNAME=testuser \
+            -e WEBUI_PASSWORD=testpass123 \
+            -e DOWNLOAD_FOLDER=/downloads \
+            ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}
+          
+          # Wait for container to start
+          sleep 15
+          
+          # Test WebUI endpoint
+          echo "Testing qBittorrent WebUI..."
+          if curl -s http://localhost:8080 > /dev/null 2>&1; then
+            echo "✓ qBittorrent WebUI responding"
+          else
+            echo "✗ qBittorrent WebUI not responding"
+            docker logs test-qbittorrent
+            docker kill test-qbittorrent
+            exit 1
+          fi
+          
+          # Check container logs
+          echo "Container logs:"
+          docker logs test-qbittorrent
+          
+          docker kill test-qbittorrent
+
+      - name: Create release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.versions.outputs.qbittorrent }}-${{ github.run_number }}
+          name: qBittorrent ${{ steps.versions.outputs.qbittorrent }}
+          body: |
+            ## qBittorrent Custom Image
+            
+            **Base Version**: ${{ steps.versions.outputs.qbittorrent }}
+            
+            ### Features
+            - Auto-configuration via environment variables
+            - WebUI username/password configuration
+            - Custom download folder support
+            
+            ### Image Tags
+            - `ghcr.io/${{ env.REPO_LOWER }}:latest`
+            - `ghcr.io/${{ env.REPO_LOWER }}:${{ steps.versions.outputs.qbittorrent }}`
+            - `ghcr.io/${{ env.REPO_LOWER }}:${{ github.sha }}`
+            
+            ### Environment Variables
+            - `WEBUI_USERNAME` - WebUI username (default: admin)
+            - `WEBUI_PASSWORD` - WebUI password (default: random secure password)
+            - `DOWNLOAD_FOLDER` - Download directory (default: /Media/torrents)
+            
+            **Build**: #${{ github.run_number }}  
+            **SHA**: `${{ github.sha }}`
+          draft: false
+          prerelease: false
