@@ -12,6 +12,13 @@ Custom qBittorrent Docker image based on [hotio/qbittorrent](https://github.com/
 
 > **⚠️ Security Warning**: Strongly consider using Docker/Podman secrets for `WEBUI_PASSWORD` to avoid exposing credentials in container configurations.
 
+### Using Secrets
+
+With podman, you can create a secret like so:
+```bash
+echo 'your-admin-password' | podman secret create qbittorrent_password -
+```
+
 ### Compose
 
 ```yaml
@@ -46,11 +53,6 @@ secrets:
 | `WEBUI_USERNAME` | WebUI username | `admin` | |
 | `WEBUI_PASSWORD` | WebUI password | _(none - required)_ | **Use Docker/Podman secrets** |
 | `DOWNLOAD_FOLDER` | Default download path | `/Media/torrents` | |
-
-### Using Secrets
-
-With podman, you can create a secret like so:
-    $ echo 'your-admin-password' | podman secret create qbittorrent_password -
 
 ## Building
 
