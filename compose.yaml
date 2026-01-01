@@ -10,6 +10,7 @@ services:
       - UMASK=002
       - TZ=Etc/UTC
       - WEBUI_PORTS=8080/tcp
+      - WEBUI_PASSWORD=kR9#mP2vL8qX5nB@wT3jZ
       - LIBTORRENT=v2
     volumes:
       - config:/config

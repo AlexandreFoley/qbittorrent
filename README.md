@@ -44,7 +44,7 @@ secrets:
 | Variable | Description | Default | Security Note |
 |----------|-------------|---------|---------------|
 | `WEBUI_USERNAME` | WebUI username | `admin` | |
-| `WEBUI_PASSWORD` | WebUI password | `kR9#mP2vL8qX5nB@wT3jZ` | **Use Docker/Podman secrets instead** |
+| `WEBUI_PASSWORD` | WebUI password | _(none - required)_ | **Use Docker/Podman secrets** |
 | `DOWNLOAD_FOLDER` | Default download path | `/Media/torrents` | |
 
 ### Using Secrets
