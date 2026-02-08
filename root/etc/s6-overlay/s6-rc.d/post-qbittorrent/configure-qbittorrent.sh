@@ -49,9 +49,22 @@ PREFS_JSON="${PREFS_JSON%,}}"
 # Apply settings via API if we have any
 if [ "$PREFS_JSON" != "{}" ]; then
     echo "Applying settings to qBittorrent..."
-    curl -X POST http://localhost:8080/api/v2/app/setPreferences \
-        --data "json=${PREFS_JSON}"
-    echo "Configuration applied successfully"
+    echo "Settings JSON: $PREFS_JSON"
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/api/v2/app/setPreferences \
+        --data "json=${PREFS_JSON}")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    RESPONSE_BODY=$(echo "$RESPONSE" | head -n-1)
+    
+    echo "API Response Code: $HTTP_CODE"
+    echo "API Response Body: $RESPONSE_BODY"
+    
+    if [ "$HTTP_CODE" -eq 200 ]; then
+        echo "✓ Configuration applied successfully"
+    else
+        echo "✗ Configuration failed with HTTP $HTTP_CODE"
+        echo "Response: $RESPONSE_BODY"
+        exit 1
+    fi
 else
     echo "No environment variables set, skipping configuration"
 fi
