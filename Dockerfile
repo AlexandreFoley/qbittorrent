@@ -8,4 +8,5 @@ ENV WEBUI_USERNAME=admin \
 COPY root/ /
 
 # Make service scripts executable
-RUN chmod +x /etc/s6-overlay/s6-rc.d/post-qbittorrent/configure-qbittorrent.sh
+RUN chmod +x /etc/s6-overlay/s6-rc.d/pre-qbittorrent/configure-qbittorrent-pre.sh && \
+    chmod +x /etc/s6-overlay/s6-rc.d/post-qbittorrent/configure-qbittorrent.sh
