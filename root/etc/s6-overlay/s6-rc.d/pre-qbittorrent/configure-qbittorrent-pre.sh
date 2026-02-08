@@ -95,10 +95,6 @@ set_config_value() {
 echo "Disabling authentication requirement for localhost..."
 set_config_value "Preferences" 'WebUI\LocalHostAuth' "false"
 
-# Set ownership to hotio user if it exists
-if id hotio &>/dev/null; then
-    chown -R hotio:hotio $BASE_PATH
-fi
 
 echo "qBittorrent pre-configuration completed"
 
