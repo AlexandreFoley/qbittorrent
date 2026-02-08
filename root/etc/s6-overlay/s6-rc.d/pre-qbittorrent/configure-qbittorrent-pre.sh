@@ -5,7 +5,7 @@ echo "Setting up qBittorrent configuration..."
 
 # Allow optional base path argument for testing
 BASE_PATH="${1:-/config}"
-CONFIG_DIR="$BASE_PATH/config/config"
+CONFIG_DIR="$BASE_PATH/config"
 CONFIG_FILE="$CONFIG_DIR/qBittorrent.conf"
 
 # Create config directory if it doesn't exist
@@ -97,7 +97,7 @@ set_config_value "Preferences" 'WebUI\LocalHostAuth' "false"
 
 # Set ownership to hotio user if it exists
 if id hotio &>/dev/null; then
-    chown -R hotio:hotio /config
+    chown -R hotio:hotio $BASE_PATH
 fi
 
 echo "qBittorrent pre-configuration completed"
