@@ -25,6 +25,15 @@ if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
     echo "Warning: qBittorrent did not become ready after ${MAX_ATTEMPTS} seconds"
 fi
 
+# Create download directory if specified and doesn't exist
+if [ -n "$DOWNLOAD_FOLDER" ]; then
+    if [ ! -d "$DOWNLOAD_FOLDER" ]; then
+        echo "Creating download directory: $DOWNLOAD_FOLDER"
+        mkdir -p "$DOWNLOAD_FOLDER"
+        chmod 777 "$DOWNLOAD_FOLDER"
+    fi
+fi
+
 # Build JSON preferences from environment variables
 PREFS_JSON="{"
 
