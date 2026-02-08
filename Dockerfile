@@ -2,7 +2,7 @@ FROM ghcr.io/hotio/qbittorrent:latest
 
 # Default environment variables for qBittorrent configuration
 ENV WEBUI_USERNAME=admin \
-    DOWNLOAD_FOLDER=/Media/torrents
+    DOWNLOAD_FOLDER=/media/torrents
 
 # Copy s6 service configurations
 COPY root/ /

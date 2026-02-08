@@ -6,7 +6,24 @@
 echo "Configuring qBittorrent from environment variables..."
 
 # Wait for qBittorrent to be fully ready
-sleep 1
+echo "Waiting for qBittorrent to be ready..."
+MAX_ATTEMPTS=30
+ATTEMPT=0
+while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    if curl -s http://localhost:8080/api/v2/app/webapiVersion > /dev/null 2>&1; then
+        echo "qBittorrent is ready"
+        break
+    fi
+    ATTEMPT=$((ATTEMPT + 1))
+    if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+        echo "qBittorrent not ready yet, retrying in 1 second... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+        sleep 1
+    fi
+done
+
+if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+    echo "Warning: qBittorrent did not become ready after ${MAX_ATTEMPTS} seconds"
+fi
 
 # Build JSON preferences from environment variables
 PREFS_JSON="{"

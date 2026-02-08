@@ -14,7 +14,7 @@ services:
       - LIBTORRENT=v2
     volumes:
       - config:/config
-      - Media:/Media
+      - media:/media
 
 volumes:
   config:
