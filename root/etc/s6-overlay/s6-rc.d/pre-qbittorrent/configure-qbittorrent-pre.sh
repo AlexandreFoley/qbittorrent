@@ -95,9 +95,6 @@ set_config_value() {
 echo "Disabling authentication requirement for localhost..."
 set_config_value "Preferences" 'WebUI\LocalHostAuth' "false"
 
-# Ensure proper ownership and permissions so qBittorrent can access the config
-chmod -R 755 "$CONFIG_DIR"
-chmod 644 "$CONFIG_FILE"
 
 echo "qBittorrent pre-configuration completed"
 
