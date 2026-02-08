@@ -63,7 +63,7 @@ if [ "$PREFS_JSON" != "{}" ]; then
     else
         echo "✗ Configuration failed with HTTP $HTTP_CODE"
         echo "Response: $RESPONSE_BODY"
-        exit 1
+        # exit 1
     fi
 else
     echo "No environment variables set, skipping configuration"
