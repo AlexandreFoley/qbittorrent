@@ -37,6 +37,22 @@ fi
 # Build JSON preferences from environment variables
 PREFS_JSON="{"
 
+# Disable UPnP by default, allow override with QBITTORRENT_UPNP
+UPNP_VALUE="${QBITTORRENT_UPNP:-false}"
+case "${UPNP_VALUE,,}" in
+    true|1|yes|on)
+        UPNP_JSON_VALUE=true
+        ;;
+    false|0|no|off|"")
+        UPNP_JSON_VALUE=false
+        ;;
+    *)
+        echo "Warning: invalid QBITTORRENT_UPNP value '$UPNP_VALUE', defaulting to false"
+        UPNP_JSON_VALUE=false
+        ;;
+esac
+PREFS_JSON="${PREFS_JSON}\"upnp\":${UPNP_JSON_VALUE},"
+
 # WebUI Username
 if [ -n "$WEBUI_USERNAME" ]; then
     PREFS_JSON="${PREFS_JSON}\"web_ui_username\":\"${WEBUI_USERNAME}\","

@@ -28,14 +28,15 @@ services:
     container_name: qbittorrent
     environment:
       - WEBUI_USERNAME=admin
-      - DOWNLOAD_FOLDER=/Media/torrents
+      - DOWNLOAD_FOLDER=/media/torrents
+      - QBITTORRENT_UPNP=false
     secrets:
       - qbittorrent_password
     ports:
       - "8080:8080"
     volumes:
       - ./config:/config
-      - ./Media:/Media
+      - ./media:/media
     restart: unless-stopped
 
 secrets:
@@ -53,6 +54,7 @@ secrets:
 | `WEBUI_USERNAME` | WebUI username | `admin` | |
 | `WEBUI_PASSWORD` | WebUI password | _(none - required)_ | **Use Docker/Podman secrets** |
 | `DOWNLOAD_FOLDER` | Default download path | `/Media/torrents` | |
+| `QBITTORRENT_UPNP` | Enable or disable UPnP (`true`/`false`) | `false` | |
 
 ## Building
 
