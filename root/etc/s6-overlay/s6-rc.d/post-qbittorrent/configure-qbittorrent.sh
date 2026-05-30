@@ -7,6 +7,12 @@ echo "Configuring qBittorrent from environment variables..."
 
 # Wait for qBittorrent to be fully ready
 echo "Waiting for qBittorrent to be ready..."
+RETRY_INTERVAL=1
+if [[ "${VPN_ENABLED}" == "true" ]] && [[ "${VPN_AUTO_PORT_FORWARD}" != "false" ]]; then
+    RETRY_INTERVAL=5
+    echo "VPN port forwarding enabled, checking qBittorrent readiness every ${RETRY_INTERVAL} seconds"
+fi
+
 MAX_ATTEMPTS=30
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
@@ -16,13 +22,13 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     fi
     ATTEMPT=$((ATTEMPT + 1))
     if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
-        echo "qBittorrent not ready yet, retrying in 1 second... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-        sleep 1
+        echo "qBittorrent not ready yet, retrying in ${RETRY_INTERVAL} second(s)... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+        sleep "$RETRY_INTERVAL"
     fi
 done
 
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "Warning: qBittorrent did not become ready after ${MAX_ATTEMPTS} seconds"
+    echo "Warning: qBittorrent did not become ready after $((MAX_ATTEMPTS * RETRY_INTERVAL)) seconds"
 fi
 
 # Create download directory if specified and doesn't exist
