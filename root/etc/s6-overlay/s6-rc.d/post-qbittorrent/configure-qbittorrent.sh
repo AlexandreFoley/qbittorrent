@@ -7,6 +7,7 @@ echo "Configuring qBittorrent from environment variables..."
 
 # Wait for qBittorrent to be fully ready
 echo "Waiting for qBittorrent to be ready..."
+WEBUI_PORT="${WEBUI_PORT:-8080}"  # Default to 8080 if not set
 RETRY_INTERVAL=1
 if [[ "${VPN_ENABLED}" == "true" ]] && [[ "${VPN_AUTO_PORT_FORWARD}" != "false" ]]; then
     RETRY_INTERVAL=5
@@ -16,7 +17,7 @@ fi
 MAX_ATTEMPTS=30
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    if curl -s http://localhost:8080/api/v2/app/webapiVersion > /dev/null 2>&1; then
+    if curl -s http://localhost:${WEBUI_PORT}/api/v2/app/webapiVersion > /dev/null 2>&1; then
         echo "qBittorrent is ready"
         break
     fi
@@ -74,7 +75,7 @@ PREFS_JSON=$(jq -n \
 if [ "$PREFS_JSON" != "{}" ] && [ "$PREFS_JSON" != "null" ]; then
     echo "Applying settings to qBittorrent..."
     echo "Settings JSON: $PREFS_JSON"
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/api/v2/app/setPreferences \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:${WEBUI_PORT}/api/v2/app/setPreferences \
         --data "json=$PREFS_JSON")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     RESPONSE_BODY=$(echo "$RESPONSE" | head -n-1)
