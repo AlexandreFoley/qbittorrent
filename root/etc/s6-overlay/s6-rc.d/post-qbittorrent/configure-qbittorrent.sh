@@ -7,6 +7,7 @@ echo "Configuring qBittorrent from environment variables..."
 
 # Wait for qBittorrent to be fully ready
 echo "Waiting for qBittorrent to be ready..."
+WEBUI_PORT="${WEBUI_PORTS%%/*}"  # Extract port number from WEBUI_PORTS (e.g., "8080/tcp" -> "8080")
 WEBUI_PORT="${WEBUI_PORT:-8080}"  # Default to 8080 if not set
 RETRY_INTERVAL=1
 if [[ "${VPN_ENABLED}" == "true" ]] && [[ "${VPN_AUTO_PORT_FORWARD}" != "false" ]]; then
